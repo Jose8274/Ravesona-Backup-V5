@@ -2,8 +2,7 @@
 
 // @ts-ignore
 const stripe = require('stripe')(
-  'sk_test_51NHZAhGNm5QqJugrmZGKLdCXP333GFvcm3QZ1msuhZTJjZVoP8OZoTUZwNRI29UVGfef9yPMb5YdrFJHTJ6u1JYW00FKsuqce8'
-)
+  'pk_test_51TLkyAAYnpFZ9T9G3GWM7Q3yc5nW8NuJuzGx9lVLCgzyUCi2r08cGLP41F8ttGOKI429MnQGAId24S75ju8bJWnx000Zh9YqDr')
 /**
  * order controller
  */

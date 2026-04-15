@@ -1,356 +1,174 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import productStyle from './ProductStyle';
-import { IoIosArrowForward } from 'react-icons/io';
-import { AiOutlineHeart, AiOutlineShopping } from 'react-icons/ai';
-import Card from '../../components/Cards/Card';
-import useFetch from '../../hooks/usefetch';
-import { useDispatch } from 'react-redux';
-import { addToCart } from '../../redux/cartReducer';
-import { addToWishlist } from '../../redux/wishlistReducer';
-import { toast } from 'react-toastify';
-import Slider from 'react-slick';
-import 'slick-carousel/slick/slick.css';
-import 'slick-carousel/slick/slick-theme.css';
+import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import useFetch from "../../hooks/usefetch";
 
 const Product = () => {
-
-  const settings = {
-    infinite: false,
-    speed: 500,
-    slidesToShow: 4,
-    slidesToScroll: 4,
-    initialSlide: 0,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 3,
-          slidesToScroll: 3,
-          infinite: true,
-        },
-      },
-      {
-        breakpoint: 600,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 2,
-          initialSlide: 2,
-        },
-      },
-      {
-        breakpoint: 480,
-        settings: {
-          slidesToShow: 1.57,
-          slidesToScroll: 1,
-        },
-      },
-    ],
-  };
-
-  const id = useParams().id;
-
-  const [selectedImg, setSelectedImg] = useState('image');
+  const { id } = useParams();
+  const { data } = useFetch(`/products/${id}?populate=*`);
   const [quantity, setQuantity] = useState(1);
-  const [activeButton, setActiveButton] = useState('description');
 
-  const handleSetActiveButton = (button) => {
-    setActiveButton(button);
-  };
-
-  const limitNumRange = (number) => {
-    const results = (number % 4) + 1;
-    return results;
-  };
-
-  const { data } = useFetch(`products/${id}?populate=*`);
-  
-  // calclating for price discount
-  const oldPrice = data?.attributes?.price;
-  const discount = data?.attributes?.discount;
-  const discountPrice = Math.round(oldPrice * (discount / 100));
-
-  // fetching data for the taps 
-  const { newData } = useFetch(`/products?_limit=4&populate=*`);
-
-  // filter the data to the four(4) latest  published data
-  const filterProducts = newData
-    .slice()
-    .reverse()
-    .slice(0, 4)
-    .sort(
-      (a, b) =>
-        new Date(b.attributes.updatedAt) - new Date(a.attributes.updatedAt)
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#05010a] via-[#0b0320] to-[#001a1a] text-white px-6 md:px-10 py-10">
+        <p className="text-white/70 text-lg">Loading product...</p>
+      </div>
     );
+  }
 
-  
-    const dispatch = useDispatch();
+  const product = data;
+
+  const rawImageUrl =
+    product?.image?.[0]?.url ||
+    product?.image?.url ||
+    null;
+
+  const imageUrl = rawImageUrl
+    ? `http://localhost:1338${rawImageUrl}`
+    : `https://placehold.co/700x820?text=${encodeURIComponent(product.name || "Product")}`;
 
   const handleAddToCart = () => {
-   dispatch(
-     addToCart({
-         id: data.id,
-         name: data.attributes.name,
-         subDescription: data.attributes.subDescription,
-         price: discountPrice,
-         image: data.attributes.image.data[0].attributes.url,
-         quantity,
-       })
-     );
+    const existingCart = JSON.parse(localStorage.getItem("cart")) || [];
 
-     toast.success(data.attributes.name +' Added To Your Cart', {
-       position: 'top-center',
-       autoClose: 2000,
-       hideProgressBar: false,
-       closeOnClick: true,
-       pauseOnHover: true,
-       draggable: true,
-       progress: undefined,
-       theme: 'light',
-     });
+    const existingItem = existingCart.find((item) => item.id === product.id);
 
-  }
+    let updatedCart;
 
-  const handleToWishlist = () => {
-  dispatch(
-    addToWishlist({
-      id: data.id,
-      name: data.attributes.name,
-      subDescription: data.attributes.subDescription,
-      image: data.attributes.image.data[0].attributes.url,
-      price: discountPrice,
-    })
-  );
-toast.success(data.attributes.name + ' Added To Your Wishlist', {
-  position: 'top-center',
-  autoClose: 2000,
-  hideProgressBar: false,
-  closeOnClick: true,
-  pauseOnHover: true,
-  draggable: true,
-  progress: undefined,
-  theme: 'light',
-});
+    if (existingItem) {
+      updatedCart = existingCart.map((item) =>
+        item.id === product.id
+          ? { ...item, quantity: item.quantity + quantity }
+          : item
+      );
+    } else {
+      updatedCart = [
+        ...existingCart,
+        {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          quantity,
+          image: imageUrl,
+        },
+      ];
+    }
 
-  }
-
-
-
-
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    alert(`${product.name} added to cart`);
+  };
 
   return (
-    <div className={productStyle.container}>
-      <div className="heading mt-10 mb-16">
-        <div className="cramps flex items-center gap-x-2 text-[14px] font-meduim ">
-          <Link to={'/'}>
-            <h1 className="opacity-[.4]">Home</h1>
+    <div className="min-h-screen bg-gradient-to-br from-[#05010a] via-[#0b0320] to-[#001a1a] text-white px-6 md:px-10 py-10">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 text-sm text-white/50">
+          <Link to="/" className="hover:text-white transition">
+            Home
           </Link>
+          <span className="mx-2">›</span>
+          <span className="text-purple-300">{product.name}</span>
+        </div>
 
-          <IoIosArrowForward />
-          <Link to={`/categories/${limitNumRange(id)}`}>
-            <h1 className="opacity-[.4] text-[#1B4B66]">
-              {data?.attributes?.categories?.data[0]?.attributes?.title}
+        <div className="grid lg:grid-cols-[1fr_1fr] gap-10 items-start">
+          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl p-4 md:p-6">
+            <img
+              src={imageUrl}
+              alt={product.name}
+              className="w-full rounded-2xl border border-white/10"
+            />
+
+            <div className="grid grid-cols-4 gap-3 mt-4">
+              {[1, 2, 3, 4].map((thumb) => (
+                <div
+                  key={thumb}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-2"
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`${product.name} thumbnail ${thumb}`}
+                    className="w-full rounded-xl"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl p-6 md:p-8">
+            <p className="uppercase tracking-[0.2em] text-sm text-cyan-300 mb-3">
+              Ravesona Product
+            </p>
+
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">
+              {product.name}
             </h1>
-          </Link>
 
-          <IoIosArrowForward />
-          <h1 className="opacity-[1] text-[#1B4B66]">
-            {data?.attributes?.name}
-          </h1>
-        </div>
-      </div>
+            <p className="text-white/65 text-lg leading-8 mb-6">
+              {product.description || "No description available."}
+            </p>
 
-      <div className={productStyle.content}>
-        <div className={productStyle.left}>
-          <img
-            className="w-[100%] md:h-[600px] rounded-[16px]"
-            src={
-              'http://localhost:1338' +
-              data?.attributes?.[selectedImg]?.data[0]?.attributes?.url
-            }
-          />
-          <div className={productStyle.thumnails}>
-            <img
-              className="w-[60px] md:w-[80px] rounded-md"
-              src={
-                'http://localhost:1338' +
-                data?.attributes?.image?.data[0]?.attributes?.url
-              }
-              onClick={() => setSelectedImg('image')}
-            />
-            <img
-              className="w-[60px] md:w-[80px] rounded-md"
-              src={
-                'http://localhost:1338' +
-                data?.attributes?.image?.data[0]?.attributes?.url
-              }
-              onClick={() => setSelectedImg('image')}
-            />
-            <img
-              className="w-[60px] md:w-[80px] rounded-md"
-              src={
-                'http://localhost:1338' +
-                data?.attributes?.image?.data[0]?.attributes?.url
-              }
-              onClick={() => setSelectedImg('image')}
-            />
-            <img
-              className="w-[60px] md:w-[80px] rounded-md"
-              src={
-                'http://localhost:1338' +
-                data?.attributes?.image?.data[0]?.attributes?.url
-              }
-              onClick={() => setSelectedImg('image')}
-            />
-          </div>
-        </div>
-        <div className={productStyle.right}>
-          <h1 className="text-[34px] text-[#13101E] font-semibold">
-            {data?.attributes?.name}
-          </h1>
-          <h5 className="text-[20px] text-[#626262] font-semibold py-3">
-            {data?.attributes?.subDescription}
-          </h5>
-          <div className="raitngs flex items-center gap-x-5 my-3">
-            <img src="../../images/star.png" className="w-[100px] " />
-            <span className="text-[#B6B6B6]">(250) Ratings</span>
-          </div>
-
-          <div className={productStyle.price}>
-            <span className={productStyle.newPrice}>${discountPrice}</span>
-            <span className={productStyle.oldPrice}>
-              ${data?.attributes?.price}
-            </span>
-            <span className={productStyle.discount}>{discount}% OFF</span>
-          </div>
-          <hr />
-
-          <div className="details  mt-6 flex flex-col md:items-center gap-4 md:flex-row md:gap-x-10">
-            <div className="content flex-[1]">
-              <h1 className="text-[20px] font-semibold md:mb-2">
-                Delivery Details
-              </h1>
-              <p>Check estimated delivery date/pickup option.</p>
-            </div>
-            <div className="coupon bg-[#F1F1F1] flex justify-between py-3 px-6 flex-[2] rounded-md">
-              <input
-                type="text"
-                placeholder="Apply Valid Pincode"
-                className="bg-transparent  focus:outline-none"
-              />
-              <button className="text-[#1B4B66] font-semibold uppercase">
-                Check
-              </button>
-            </div>
-          </div>
-
-          <div className="quantity my-10 flex items-center gap-x-4">
-            <h1 className="text-[20px] font-semibold ">Quantity:</h1>
-            <div className="counter border border-[#1B4B66] rounded-md w-[120px] flex items-center justify-between">
-              <button
-                className="px-2 text-[24px]"
-                onClick={() =>
-                  setQuantity((prev) => (prev === 1 ? 1 : prev - 1))
-                }
-              >
-                -
-              </button>
-              <span>{quantity}</span>
-              <button
-                className="px-2 text-[24px]"
-                onClick={() => setQuantity((prev) => prev + 1)}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <div className="discount border   border-[#1B4B66] py-2 px-4 md:w-[60%] flex items-center gap-x-5 rounded-md">
-            <div className="content mb-2">
-              <h1 className="font-semibold mb-2">
-                Get upto 30% Off on order value above $100
-              </h1>
-              <span className="text-[#1B4B66] text-[14px] font-medium">
-                Terms & Conditions
+            <div className="flex items-center gap-4 mb-8">
+              <span className="text-3xl font-semibold text-white">
+                ${Number(product.price || 0).toFixed(2)}
+              </span>
+              <span className="px-3 py-1 rounded-full border border-purple-400/30 bg-purple-500/10 text-sm text-purple-200">
+                Available Now
               </span>
             </div>
-            <div className="code bg-[#f1f1f1] px-3 text-center py-5 rounded-sm">
-              <span className="text-[14px] text-[#626262]">Use Code</span>
-              <h1 className="font-semibold">ORDER100</h1>
-            </div>
-          </div>
 
-          <div className="buttons mt-10 flex flex-col md:items-center gap-5 md:gap-x-5 md:flex-row">
-            <button
-              className="flex items-center justify-center gap-x-5 px-20 py-2 bg-[#1B4B66] text-[#fff] rounded-md"
-              onClick={handleAddToCart
-              }
-            >
-              <AiOutlineShopping size={24} /> Add To Bag
-            </button>
-            <button
-              className="flex items-center justify-center gap-x-5 px-10 py-2 border-2 border-[#1B4B66] text-[#1B4B66] rounded-md"
-              onClick={handleToWishlist
-              }
-            >
-              <AiOutlineHeart size={24} /> Add To Wishlist
-            </button>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-5 mb-8">
+              <h2 className="text-xl font-semibold mb-4">Quantity</h2>
+
+              <div className="inline-flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <button
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  className="w-10 h-10 rounded-xl border border-white/10 hover:bg-white/10 transition"
+                >
+                  -
+                </button>
+
+                <span className="min-w-[30px] text-center text-lg">{quantity}</span>
+
+                <button
+                  onClick={() => setQuantity((prev) => prev + 1)}
+                  className="w-10 h-10 rounded-xl border border-white/10 hover:bg-white/10 transition"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              <button
+                onClick={handleAddToCart}
+                className="px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold hover:opacity-90 transition"
+              >
+                Add to Cart
+              </button>
+
+              <button className="px-6 py-4 rounded-2xl border border-white/15 text-white hover:bg-white/10 transition">
+                Add to Wishlist
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+              <h2 className="text-xl font-semibold mb-3">Product Details</h2>
+              <ul className="space-y-2 text-white/65">
+                <li>• Physical collectible product</li>
+                <li>• Designed for the Ravesona experience</li>
+                <li>• Great for gifting, collecting, and display</li>
+                <li>• Stored in your cart until checkout</li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="desc my-16">
-        <div className="container">
-          <div className="buttons w-full bg-[#f1f1f1] py-2 px-2 md:px-5 rounded-[12px] flex items-center gap-x-10">
-            <button
-              className={`${
-                activeButton === 'description'
-                  ? 'bg-[#1B4B66] text-white px-4 py-1 rounded-[6px]'
-                  : ''
-              }`}
-              onClick={() => handleSetActiveButton('description')}
-            >
-              Product Description
-            </button>
-            <button
-              className={` ${
-                activeButton === 'relatedProducts'
-                  ? 'bg-[#1B4B66] text-white px-4 py-1 rounded-[6px]'
-                  : ''
-              }`}
-              onClick={() => handleSetActiveButton('relatedProducts')}
-            >
-              Related Products
-            </button>
-            <button
-              className={` ${
-                activeButton === 'ratings'
-                  ? 'bg-[#1B4B66] text-white px-4 py-1 rounded-[6px]'
-                  : ''
-              }`}
-              onClick={() => handleSetActiveButton('ratings')}
-            >
-              Ratings
-            </button>
-          </div>
-          {activeButton === 'description' && (
-            <div className="content my-10 text-[#626262]">
-              <p className="mb-2">{data?.attributes?.description}</p>
-            </div>
-          )}
-
-          {activeButton === 'relatedProducts' && (
-            <div className="content my-10 text-[#626262]">
-              <Slider {...settings}>
-                {filterProducts.map((item) => (
-                <div className="div" key={item.id}>
-                  <Card item={item} />
-                </div>
-              ))} 
-              </Slider>
-             
-            </div>
-          )}
+        <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl p-6 md:p-8">
+          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">
+            Description
+          </h2>
+          <p className="text-white/70 leading-8">
+            {product.description ||
+              "This product is part of the Ravesona store experience. More details can be added here later."}
+          </p>
         </div>
       </div>
     </div>

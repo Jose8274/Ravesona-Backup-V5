@@ -1,177 +1,234 @@
-import { IoIosArrowForward } from 'react-icons/io';
-import { Link } from 'react-router-dom';
-import { makeRequest } from '../../../makeRequest';
-import { useDispatch, useSelector } from 'react-redux';
-import { removeItem } from '../../redux/cartReducer';
-import { loadStripe } from '@stripe/stripe-js';
+import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 const MyCart = () => {
-  const products = useSelector((state) => state.cart.products);
+  const [cartItems, setCartItems] = useState([]);
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
 
-  const dispatch = useDispatch();
+  useEffect(() => {
+    const storedCart = JSON.parse(localStorage.getItem("cart")) || [];
+    setCartItems(storedCart);
+  }, []);
 
-  const totalPrice = () => {
-    let total = 0;
-    const taxPercentage = Math.random() * 0.1 + 0.1;
-    const taxAmount = total * taxPercentage.toFixed(2);
-    products.forEach((item) => (total += item.quantity * item.price));
-    const totalPrice = total + taxAmount;
-    return totalPrice.toFixed(2);
+  const updateCart = (updatedItems) => {
+    setCartItems(updatedItems);
+    localStorage.setItem("cart", JSON.stringify(updatedItems));
   };
 
-  const stripePromise = loadStripe(
-    'pk_test_51NHZAhGNm5QqJugrwq5NU368aPqix9u0yGGE619AV6djUxyP61EoRdRiUaYPDt9Y2sE2eAsGTtDATojIubXHvcJg004TODzUM9'
-  );
+  const removeItem = (id) => {
+    const updatedItems = cartItems.filter((item) => item.id !== id);
+    updateCart(updatedItems);
+  };
 
-  const handlePayment = async () => {
+  const changeQuantity = (id, amount) => {
+    const updatedItems = cartItems.map((item) => {
+      if (item.id === id) {
+        const newQuantity = Math.max(1, (item.quantity || 1) + amount);
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
+    });
+
+    updateCart(updatedItems);
+  };
+
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const price = Number(item.price) || 0;
+      const quantity = Number(item.quantity) || 1;
+      return sum + price * quantity;
+    }, 0);
+  }, [cartItems]);
+
+  const tax = 0;
+  const total = subtotal + tax;
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
     try {
-      const stripe = await stripePromise;
-      const res = await makeRequest.post('/orders', {
-        products,
-      });
-      await stripe.redirectToCheckout({
-        sessionId: res.data.stripeSession.id,
-      });
-
-        console.log(stripe)
-        console.log(res)
-      
-    } catch (err) {
-      console.log(err.message);
+      setLoadingCheckout(true);
+      alert("Stripe checkout comes next.");
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert("Something went wrong during checkout.");
+    } finally {
+      setLoadingCheckout(false);
     }
   };
 
-
   return (
-    <div className="px-2 md:px-8 pb-10">
-      <div className="heading mt-16 mb-10">
-        <div className="cramps flex items-center gap-x-2 text-[14px] font-meduim ">
-          <Link to={'/'}>
-            <h1 className="opacity-[.4]">Home</h1>
+    <div className="min-h-screen bg-gradient-to-br from-[#05010a] via-[#0b0320] to-[#001a1a] text-white px-6 md:px-10 py-10">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 text-sm text-white/50">
+          <Link to="/" className="hover:text-white transition">
+            Home
           </Link>
-
-          <IoIosArrowForward />
-          <h1 className="opacity-[1] text-[#1B4B66]">My Cart</h1>
+          <span className="mx-2">›</span>
+          <span className="text-purple-300">My Cart</span>
         </div>
 
-        <div className="title text-[32px] font-bold text-[#1B4B66] mt-5 ">
-          <h1>My Cart</h1>
+        <div className="mb-10">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">
+            My Cart
+          </h1>
+          <p className="text-white/60 mt-3">
+            Review your picks before checkout.
+          </p>
         </div>
-      </div>
-      <div className="content flex flex-col  items-start gap-16 md:flex-row">
-        <div className="left w-full flex-[1] md:flex-[1] ">
-          <table className=" text-left md:w-[80%]">
-            <thead className="border-b">
-              <tr>
-                <th>Product Name</th>
-                <th>Price</th>
-                <th>Qty</th>
-                <th>Subtotal</th>
-                <hr />
-              </tr>
-            </thead>
 
-            {products.length === 0 ? (
-              <span className="text-center flex justify-center items-center mt-10 mb-10 text-[18px] opacity-[.3] font-semibold">
-                Your Cartlist is empty
-              </span>
+        <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_0.9fr] gap-8">
+          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl p-6">
+            <div className="hidden md:grid grid-cols-[2.2fr_0.8fr_0.9fr_0.9fr_0.5fr] gap-4 border-b border-white/10 pb-4 mb-6 text-sm uppercase tracking-wide text-white/60">
+              <p>Product</p>
+              <p>Price</p>
+              <p>Quantity</p>
+              <p>Subtotal</p>
+              <p></p>
+            </div>
+
+            {cartItems.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-6 py-16 text-center">
+                <p className="text-3xl font-semibold text-white/70">Your cart is empty</p>
+                <p className="text-white/40 mt-3">
+                  Add something from the store to see it here.
+                </p>
+                <Link
+                  to="/"
+                  className="inline-block mt-6 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium hover:opacity-90"
+                >
+                  Continue Shopping
+                </Link>
+              </div>
             ) : (
-              products.map((item) => (
-                <tbody key={item.id}>
-                  <tr>
-                    <td>
-                      <div className="my-10 flex justify-between w-[70%]">
-                        <div className="left flex gap-x-5">
-                          <img
-                            className="w-[100px] object-contain"
-                            src={'http://localhost:1338' + item.image}
-                          />
-                          <div className="">
-                            <h1 className="font-semibold text-[#1B4B66] mb-2">
-                              {item.name}
-                            </h1>
-                            <span className="text-[#626262]">
-                              {item.subDescription}
-                            </span>
-                            <div className="counter mt-2  w-[100px] justify-between rounded-md flex items-center">
-                              <span className="text-[#1B4B66]">
-                                {' '}
-                                Qty - {item.quantity}
-                              </span>
-                            </div>
-                            <div className="buttons mt-5 flex gap-6 font-semibold text-[14px]">
-                              <button
-                                className="text-red-500 underline"
-                                onClick={() => dispatch(removeItem(item.id))}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
+              <div className="space-y-5">
+                {cartItems.map((item) => {
+                  const price = Number(item.price) || 0;
+                  const quantity = Number(item.quantity) || 1;
+                  const itemSubtotal = price * quantity;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="grid grid-cols-1 md:grid-cols-[2.2fr_0.8fr_0.9fr_0.9fr_0.5fr] gap-4 items-center rounded-2xl border border-white/10 bg-black/20 p-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={
+                            item.image ||
+                            `https://placehold.co/140x160?text=${encodeURIComponent(item.name)}`
+                          }
+                          alt={item.name}
+                          className="w-24 h-28 object-cover rounded-xl border border-white/10"
+                        />
+                        <div>
+                          <h2 className="font-semibold text-xl text-white">{item.name}</h2>
+                          <p className="text-sm text-white/50 mt-1">
+                            {item.description || "Ravesona item"}
+                          </p>
                         </div>
                       </div>
-                    </td>
-                    <td className="text-center"> ${item.price}</td>
-                    <td className="text-center">{item.quantity}</td>
-                    <td className="text-center">
-                      ${item.quantity * item.price}{' '}
-                    </td>
-                  </tr>
-                </tbody>
-              ))
-            )}
-          </table>
-          <div className="accordion mt-10">
-            <h1 className="mb-3 text-[#1B4B66] font-semibold">
-              Apply Coupon Code
-            </h1>
-            <hr className="w-[83%]" />
-            <div className="coupon mt-5 bg-[#F1F1F1] md:w-[50%] flex justify-between py-3 px-4 flex-[2] rounded-md">
-              <input
-                type="text"
-                placeholder="Apply Valid Pincode"
-                className="bg-transparent  focus:outline-none w-[80%]"
-              />
-              <button className="text-[#1B4B66] font-semibold uppercase">
-                Check
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="right w-full flex-[1] md:sticky md:top-5 md:h-full">
-          <h1 className="mb-1 text-[24px] font-semibold text-[#1B4B66]">
-            Order Summary
-          </h1>
-          <hr />
-          <div className="total mt-5">
-            <div className="subtotal flex justify-between items-center">
-              <h1>Subtotal:</h1>
-              <span>${totalPrice()}</span>
-            </div>
-            <div className="text  flex justify-between items-center my-6">
-              <h1 className="font-semibold text-[#1B4B66]">Tax:</h1>
-              <span>$0</span>
-            </div>
-            <div className="total flex justify-between items-center mb-6 ">
-              <h1 className="font-semibold text-[#1B4B66]">total:</h1>
-              <span>${totalPrice()}</span>
-            </div>
-          </div>
-          <div className="button flex flex-col justify-between text-white gap-5 md:gap-x-5 md:flex-row">
-            {/* <Link className="md:w-[40%]" to={`/checkout/information`}> */}
-            <button
-              className="bg-[#1B4B66] w-[100%] rounded-md py-2"
-              onClick={handlePayment}
-            >
-              Place Order
-            </button>
-            {/* </Link> */}
 
-            <Link className="md:w-[40%]" to={'/categories/1'}>
-              <button className="border-2 border-[#1B4B66] text-[#1B4B66] w-[100%] py-2 rounded-md">
-                Continue Shopping
-              </button>
+                      <div className="text-white/80 text-lg">
+                        ${price.toFixed(2)}
+                      </div>
+
+                      <div>
+                        <div className="inline-flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                          <button
+                            onClick={() => changeQuantity(item.id, -1)}
+                            className="w-8 h-8 rounded-lg border border-white/10 hover:bg-white/10 transition"
+                          >
+                            -
+                          </button>
+                          <span className="min-w-[20px] text-center">{quantity}</span>
+                          <button
+                            onClick={() => changeQuantity(item.id, 1)}
+                            className="w-8 h-8 rounded-lg border border-white/10 hover:bg-white/10 transition"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="font-semibold text-lg text-cyan-300">
+                        ${itemSubtotal.toFixed(2)}
+                      </div>
+
+                      <div className="text-right">
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="text-red-400 hover:text-red-300 transition"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-10">
+              <h2 className="text-2xl font-semibold mb-4 text-white">
+                Promo Code
+              </h2>
+              <div className="flex max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                <input
+                  type="text"
+                  placeholder="Enter promo code"
+                  className="flex-1 px-5 py-4 bg-transparent text-white placeholder:text-white/35 outline-none"
+                />
+                <button className="px-6 font-semibold text-cyan-300 hover:bg-white/10 transition">
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="h-fit rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl p-6 sticky top-6">
+            <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-cyan-400 text-transparent bg-clip-text">
+              Order Summary
+            </h2>
+
+            <div className="space-y-5 border-t border-white/10 pt-6">
+              <div className="flex justify-between text-lg text-white/75">
+                <span>Subtotal</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between text-lg text-white/75">
+                <span>Tax</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between text-2xl font-semibold text-white pt-3 border-t border-white/10">
+                <span>Total</span>
+                <span>${total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleCheckout}
+              disabled={loadingCheckout || cartItems.length === 0}
+              className="w-full mt-8 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 py-4 text-lg font-semibold text-white hover:opacity-90 disabled:opacity-50 transition"
+            >
+              {loadingCheckout ? "Redirecting..." : "Place Order"}
+            </button>
+
+            <Link
+              to="/"
+              className="block w-full mt-4 rounded-2xl border border-white/15 py-4 text-center text-lg font-medium text-white hover:bg-white/10 transition"
+            >
+              Continue Shopping
             </Link>
+
+            <p className="text-white/35 text-sm mt-5 text-center">
+              Secure checkout will be added next.
+            </p>
           </div>
         </div>
       </div>
